@@ -1,0 +1,7 @@
+name: TobyRun
+main: net.Andrewcpu.TobyRun.Main
+version: 2.0
+commands:
+   tr:
+      permission: admin.*
+   join:
