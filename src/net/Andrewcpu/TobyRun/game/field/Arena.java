@@ -12,12 +12,15 @@ import net.Andrewcpu.TobyRun.game.kits.TickKit;
 import net.Andrewcpu.TobyRun.utils.LocationManager;
 import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Bukkit;
+import org.bukkit.DyeColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
@@ -42,10 +45,10 @@ public class Arena {
     private Kit snowballKit;
     private Kit swordKit;
     public Arena(){
-        teams.add(createTeam(TeamColor.BLACK, ChatColor.DARK_GRAY));
-        teams.add(createTeam(TeamColor.GRAY,ChatColor.GRAY));
-        teams.add(createTeam(TeamColor.GREEN,ChatColor.GREEN));
-        teams.add(createTeam(TeamColor.RED,ChatColor.RED));
+        teams.add(createTeam(TeamColor.BLACK, ChatColor.DARK_GRAY, DyeColor.BLACK));
+        teams.add(createTeam(TeamColor.GRAY,ChatColor.GRAY,DyeColor.GRAY));
+        teams.add(createTeam(TeamColor.GREEN,ChatColor.GREEN,DyeColor.GREEN));
+        teams.add(createTeam(TeamColor.RED,ChatColor.RED,DyeColor.RED));
         setupKits();
     }
     public void setupKits(){
@@ -104,21 +107,29 @@ public class Arena {
             }
         });
 
+        Player p;
+        archerKit.setWalkSpeed(0.4f);
         archerKit.addLine("+1 Bow");
         archerKit.addLine("+1 Arrow/Second");
         archerKit.addLine("+Ability Leap");
+        archerKit.addPotion(new PotionEffect(PotionEffectType.BLINDNESS,100,1,true,false));
 
+        mageKit.setMaxHealth(10);
+        mageKit.setWalkSpeed(0.15f);
         mageKit.addLine("+1 Blaze Rod");
         mageKit.addLine("+1 Golden Sword");
 
+        snowballKit.setWalkSpeed(0.35f);
         snowballKit.addLine("+1 Iron Sword");
         snowballKit.addLine("+1 Snowball/Second");
 
+        swordKit.setWalkSpeed(0.18f);
+        swordKit.setMaxHealth(25);
         swordKit.addLine("+1 Diamond Sword");
         swordKit.addLine("+Ability Leap");
     }
-    public Team createTeam(TeamColor teamColor, ChatColor chatColor){
-        Team team = new Team(LocationManager.loadLocation(teamColor.toString().toUpperCase()),teamColor, chatColor);
+    public Team createTeam(TeamColor teamColor, ChatColor chatColor, DyeColor dye){
+        Team team = new Team(LocationManager.loadLocation(teamColor.toString().toUpperCase()),teamColor, chatColor, dye);
         return team;
     }
 
@@ -223,6 +234,7 @@ public class Arena {
     public void joinGame(Player player){
         if(getPlayerTeam(player)!=null)
             return;
+        player.setWalkSpeed(0.2f);
         player.getInventory().clear();
         player.teleport(lobby);
         selectKit(player,getArcherKit());
@@ -257,6 +269,13 @@ public class Arena {
         team.addPlayer(player);
         Bukkit.broadcastMessage(Main.header + player.getName() + " joined the game on the " + team.getChatColor() + team.getTeamColor().toString() + " team.");
         updatePlayers();
+    }
+    public void leaveGame(Player player) {
+        Team team = getPlayerTeam(player);
+        team.removePlayer(player);
+        if(kits.containsKey(player))
+            kits.remove(player);
+
     }
     public Team getPlayerTeam(Player player){
         for(Team team : teams)
@@ -300,7 +319,15 @@ public class Arena {
         if(getGameState()==GameState.IN_PROGRESS){
             calculateScores();
             time++;
-            getPlayers().forEach((player -> kits.get(player).getTickKit().onTick(player)));
+            getPlayers().forEach((player -> {
+                Kit kit = kits.get(player);
+                kit.getTickKit().onTick(player);
+                for(PotionEffect potionEffect: kit.getPotionEffects()){
+                    player.addPotionEffect(potionEffect);
+                }
+                player.setWalkSpeed(kit.getWalkSpeed());
+                player.setMaxHealth(kit.getMaxHealth());
+            }));
             getPlayers().forEach((player)->player.setLevel(getMaxTime()-getTime()));
             if(time>getMaxTime())
                 gameOver();
@@ -311,10 +338,21 @@ public class Arena {
             player.teleport(lobby);
             player.getInventory().clear();
         }
+        Team winningTeam = null;
         for(Team team : teams){
+            if(winningTeam==null){
+                winningTeam = team;
+            }
+            else{
+                if(team.getScore()>winningTeam.getScore()){
+                    winningTeam = team;
+                }
+            }
             team.setPlayers(new ArrayList<>());
         }
+        Bukkit.broadcastMessage(Main.header + winningTeam.getChatColor() + "The " + winningTeam.getNaturalTeamName() + " team won the game with " + ChatColor.GOLD + winningTeam.getScore() + " pts!");
         setGameState(GameState.JOINABLE);
+        time = 0;
         resetMap();
     }
     public void startGame(){
@@ -342,6 +380,7 @@ public class Arena {
         },(countdown + 1) * 20);
     }
     public void resetMap(){
+        Main.getInstance().getGameListener().cleanUp();
         for(Block block : LocationManager.blocksFromTwoPoints(corner1,corner2)){
             block.setData((byte)0);
         }
@@ -350,7 +389,8 @@ public class Arena {
         int i = 1;
         Random r = new Random();
         List<Block> blocks = LocationManager.blocksFromTwoPoints(corner1,corner2);
-        while(i<=count){
+        int tries = 0;
+        while(i<=count && tries<=blocks.size()){
             Block b = blocks.get(r.nextInt(blocks.size() - 1));
             if(b.getType()==Material.STAINED_GLASS){
                 if(b.getData()==team.getColorData()){
@@ -359,11 +399,12 @@ public class Arena {
                     b.setData((byte)0);
                 }
             }
+            tries += 1;
         }
 
     }
     public void respawnPlayer(Player player){
-        player.setHealth(20);
+        player.setHealth(player.getMaxHealth());
         int scre = 50;
         if(getPlayerTeam(player).getScore()<50){
             scre = getPlayerTeam(player).getScore();

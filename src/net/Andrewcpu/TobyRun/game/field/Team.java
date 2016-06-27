@@ -2,6 +2,7 @@ package net.Andrewcpu.TobyRun.game.field;
 
 import net.Andrewcpu.TobyRun.game.field.types.TeamColor;
 import net.md_5.bungee.api.ChatColor;
+import org.bukkit.DyeColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
@@ -21,21 +22,32 @@ public class Team {
     private int score = 0;
     private int colorData;
     private ChatColor chatColor;
+    private DyeColor dyeColor;
 
-    public Team(Location spawnPoint, TeamColor teamColor,ChatColor chatColor) {
+    public Team(Location spawnPoint, TeamColor teamColor,ChatColor chatColor, DyeColor dyeColor) {
         this.spawnPoint = spawnPoint;
         this.teamColor = teamColor;
         this.naturalTeamName = teamColor.toString().toUpperCase();
         this.chatColor = chatColor;
+        this.dyeColor = dyeColor;
         setupColorData();
     }
 
-    public Team(Location spawnPoint, TeamColor teamColor, String naturalTeamName,ChatColor chatColor) {
+    public Team(Location spawnPoint, TeamColor teamColor, String naturalTeamName,ChatColor chatColor, DyeColor dyeColor) {
         this.spawnPoint = spawnPoint;
         this.teamColor = teamColor;
         this.naturalTeamName = naturalTeamName;
         this.chatColor = chatColor;
+        this.dyeColor = dyeColor;
         setupColorData();
+    }
+
+    public DyeColor getDyeColor() {
+        return dyeColor;
+    }
+
+    public void setDyeColor(DyeColor dyeColor) {
+        this.dyeColor = dyeColor;
     }
 
     public void setupColorData(){
@@ -84,6 +96,8 @@ public class Team {
 
     public void setScore(int score) {
         this.score = score;
+        if(this.score<0)
+            this.score = 0;
     }
 
     public int getMaxPlayers() {

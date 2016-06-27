@@ -32,9 +32,11 @@ public class GameListener implements Listener {
         for(BlockState blockState : blockStates.values()){
             blockState.update(true);
         }
+        blockStates.clear();
     }
     @EventHandler
     public void onMove(PlayerMoveEvent event){
+//        event.getPlayer().setWalkSpeed(1f);
         Main main = Main.getInstance();
         if(main.getArena().getGameState()== GameState.IN_PROGRESS){
             Team team = main.getArena().getPlayerTeam(event.getPlayer());
@@ -147,7 +149,12 @@ public class GameListener implements Listener {
         for(Block b : event.blockList()){
             blockStates.put(b.getLocation(),b.getState());
             b.setType(Material.AIR);
-            Bukkit.getScheduler().scheduleSyncDelayedTask(Main.getInstance(),()->{blockStates.get(b.getLocation()).update(true);blockStates.remove(b.getLocation());},r.nextInt(30 * 20));
+            Bukkit.getScheduler().scheduleSyncDelayedTask(Main.getInstance(),()->{
+                if(blockStates.containsKey(b.getLocation())) {
+                    blockStates.get(b.getLocation()).update(true);
+                    blockStates.remove(b.getLocation());
+                }
+            },r.nextInt(30 * 20));
         }
         event.blockList().clear();
     }
@@ -235,6 +242,13 @@ public class GameListener implements Listener {
         if(Main.getInstance().getArena().getPlayerTeam(event.getPlayer())!=null)
             color = Main.getInstance().getArena().getPlayerTeam(event.getPlayer()).getChatColor();
         event.setFormat(color + event.getPlayer().getDisplayName() + " " + ChatColor.RESET + event.getMessage());
+        String name = color + event.getPlayer().getDisplayName();
+        event.getPlayer().setPlayerListName(name.length()>16 ? name.substring(0,16) : name);
+    }
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        Main.getInstance().getArena().leaveGame(event.getPlayer());
+        event.setQuitMessage("");
     }
 
 }
